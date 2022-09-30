@@ -9,6 +9,7 @@ class House(models.Model):
   price_per_night = models.PositiveIntegerField()
   description = models.TextField()
   address = models.CharField(max_length=140)
+  owner = models.ForeignKey("users.User", on_delete=models.CASCADE)
 
   def __str__(self):
     return self.name
