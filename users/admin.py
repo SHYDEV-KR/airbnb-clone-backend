@@ -10,7 +10,17 @@ class CustomUserAdmin(UserAdmin):
     (
       "Profile",
       {
-          "fields": ("username", "password", "name", "email", "is_host", "date_of_birth"),
+          "fields": (
+                    "avatar",
+                    "username",
+                    "password",
+                    "name",
+                    "email",
+                    "is_host",
+                    "gender",
+                    "language",
+                    "currency",
+                ),
           "classes": ("wide",),
       },
     ),
