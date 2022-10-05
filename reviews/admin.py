@@ -4,7 +4,7 @@ from .models import Review
 # Register your models here.
 class WordFilter(admin.SimpleListFilter):
 
-  title = "Filter by words!"
+  title = "positive words!"
 
   parameter_name = "word"
 
@@ -22,6 +22,26 @@ class WordFilter(admin.SimpleListFilter):
     else:
       reviews
 
+class GoodOrBadReviewFilter(admin.SimpleListFilter):
+
+  title = "good or bad reviews."
+
+  parameter_name = "reviews"
+
+  def lookups(self, request, model_admin):
+    return [
+      ("good", "Good"),
+      ("bad", "Bad"),
+    ]
+
+  def queryset(self, request, reviews):
+    if self.value() == "good":
+      return reviews.filter(rating__gte=3)
+    elif self.value() == "bad":
+      return reviews.filter(rating__lt=3)
+    else:
+      reviews
+
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
 
@@ -31,6 +51,7 @@ class ReviewAdmin(admin.ModelAdmin):
   )
   list_filter = (
       WordFilter,
+      GoodOrBadReviewFilter,
       "rating",
       "user__is_host",
       "room__category",
