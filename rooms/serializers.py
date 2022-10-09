@@ -25,9 +25,9 @@ class RoomListSerializer(serializers.ModelSerializer):
     )
 
 class RoomDetailSerializer(serializers.ModelSerializer):
-  owner = MinimalUserSerializer()
-  amenities = AmenitySerializer(many=True)
-  category = CategorySerializer()
+  owner = MinimalUserSerializer(read_only=True)
+  amenities = AmenitySerializer(read_only=True, many=True)
+  category = CategorySerializer(read_only=True)
 
   class Meta:
     model = Room

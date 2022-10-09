@@ -1,10 +1,12 @@
-from django.http import request
-from rest_framework.exceptions import NotFound
+from unicodedata import category
+from rest_framework.exceptions import NotFound, NotAuthenticated, ParseError
+from django.db import transaction
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
 from .models import Amenity, Room
+from categories.models import Category
 from .serializers import AmenitySerializer, RoomListSerializer, RoomDetailSerializer
 from rooms import serializers
 
@@ -17,6 +19,52 @@ class Rooms(APIView):
       many=True,
     )
     return Response(serializer.data)
+
+  def post(self, request):
+    def get_category_from_request():
+        category_pk = request.data.get("category")
+        if not category_pk:
+          raise ParseError
+        try:
+          category = Category.objects.get(pk=category_pk)
+          if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+            raise ParseError("The Category kind should be 'rooms'.")
+        except Category.DoesNotExist:
+          raise ParseError("Category not found.")
+        return category
+
+    def add_amenities_to_room(room):
+      amenities = request.data.get("amenities")
+      for amenity_pk in amenities:
+        amenity = Amenity.objects.get(pk=amenity_pk)
+        room.amenities.add(amenity)
+
+    def send_response():
+      serializer = RoomDetailSerializer(data=request.data)
+      if serializer.is_valid():
+        category = get_category_from_request()
+        try:
+          with transaction.atomic():
+            new_room = serializer.save(
+              owner=request.user,
+              category=category,
+            )
+            add_amenities_to_room(new_room)
+                
+            return Response(
+              RoomDetailSerializer(new_room).data,
+            )
+        except Exception:
+          raise ParseError("Amenity not found.")
+      else:
+        return Response(serializer.errors)
+
+
+    if request.user.is_authenticated:
+      return send_response()
+    else:
+      raise NotAuthenticated
+
 
 class RoomDetail(APIView):
   def get_object(self, pk):
