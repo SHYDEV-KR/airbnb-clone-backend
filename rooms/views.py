@@ -33,35 +33,35 @@ class Rooms(APIView):
           raise ParseError("Category not found.")
         return category
 
-    def add_amenities_to_room(room):
+    def add_amenities_to_room_from_request(room):
       amenities = request.data.get("amenities")
       for amenity_pk in amenities:
         amenity = Amenity.objects.get(pk=amenity_pk)
         room.amenities.add(amenity)
 
-    def send_response():
-      serializer = RoomDetailSerializer(data=request.data)
-      if serializer.is_valid():
+    def create_room_with_response(serializer):
         category = get_category_from_request()
         try:
-          with transaction.atomic():
+          with transaction.atomic(): ## 오류없이 통과하면 코드 한 번에 실행
             new_room = serializer.save(
               owner=request.user,
               category=category,
             )
-            add_amenities_to_room(new_room)
-                
+            add_amenities_to_room_from_request(new_room)
+
             return Response(
               RoomDetailSerializer(new_room).data,
             )
         except Exception:
           raise ParseError("Amenity not found.")
-      else:
-        return Response(serializer.errors)
 
 
     if request.user.is_authenticated:
-      return send_response()
+      serializer = RoomDetailSerializer(data=request.data)
+      if serializer.is_valid():
+        return create_room_with_response(serializer)
+      else:
+        return Response(serializer.errors)
     else:
       raise NotAuthenticated
 
