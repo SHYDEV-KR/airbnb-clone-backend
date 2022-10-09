@@ -11,6 +11,15 @@ from .serializers import AmenitySerializer, RoomListSerializer, RoomDetailSerial
 from rooms import serializers
 
 # Create your views here.
+def get_validated_category(category_pk):
+    try:
+      category = Category.objects.get(pk=category_pk)
+      if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+        raise ParseError("The Category kind should be 'rooms'.")
+    except Category.DoesNotExist:
+      raise ParseError("Category not found.")
+    return category
+
 class Rooms(APIView):
   def get(self, request):
     all_rooms = Room.objects.all()
@@ -21,33 +30,28 @@ class Rooms(APIView):
     return Response(serializer.data)
 
   def post(self, request):
-    def get_category_from_request():
-        category_pk = request.data.get("category")
-        if not category_pk:
-          raise ParseError
-        try:
-          category = Category.objects.get(pk=category_pk)
-          if category.kind == Category.CategoryKindChoices.EXPERIENCES:
-            raise ParseError("The Category kind should be 'rooms'.")
-        except Category.DoesNotExist:
-          raise ParseError("Category not found.")
-        return category
+    def get_category_from_request(request):
+      category_pk = request.data.get("category")
+      if not category_pk:
+        raise ParseError
+      category = get_validated_category(category_pk)
+      return category
 
-    def add_amenities_to_room_from_request(room):
+    def add_amenities_to_room_from_request(request, room):
       amenities = request.data.get("amenities")
       for amenity_pk in amenities:
         amenity = Amenity.objects.get(pk=amenity_pk)
         room.amenities.add(amenity)
 
     def create_room_with_response(serializer):
-        category = get_category_from_request()
+        category = get_category_from_request(request)
         try:
           with transaction.atomic(): ## 오류없이 통과하면 코드 한 번에 실행
             new_room = serializer.save(
               owner=request.user,
               category=category,
             )
-            add_amenities_to_room_from_request(new_room)
+            add_amenities_to_room_from_request(request, new_room)
 
             return Response(
               RoomDetailSerializer(new_room).data,
@@ -78,6 +82,35 @@ class RoomDetail(APIView):
     return Response(serializer.data)
 
   def put(self, request, room_id):
+    def update_room_with_response(serializer):
+      category_pk = request.data.get("category")
+      if category_pk:
+        category = get_validated_category(category_pk)
+
+      try:
+        with transaction.atomic(): ## 오류없이 통과하면 코드 한 번에 실행  
+          if category_pk:
+            room = serializer.save(
+              category=category,
+            )
+          else:
+            room = serializer.save()
+            
+          amenities = request.data.get("amenities")
+          if amenities:
+            room.amenities.clear()
+            for amenity_pk in amenities:
+              amenity = Amenity.objects.get(pk=amenity_pk)
+              room.amenities.add(amenity)
+          elif amenities is not None:
+            room.amenities.clear()
+
+          return Response(
+            RoomDetailSerializer(room).data,
+          )
+      except Exception:
+        raise ParseError("Amenity not found.")
+
     room = self.get_object(room_id)
     if not request.user.is_authenticated:
       raise NotAuthenticated
@@ -90,10 +123,7 @@ class RoomDetail(APIView):
       partial=True,
     )
     if serializer.is_valid():
-      updated_room = serializer.save()
-      return Response(
-        RoomDetailSerializer(updated_room).data,
-      )
+      return update_room_with_response(serializer)
     else:
       return Response(serializer.errors)
 
