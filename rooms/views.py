@@ -1,5 +1,5 @@
 from unicodedata import category
-from rest_framework.exceptions import NotFound, NotAuthenticated, ParseError
+from rest_framework.exceptions import NotFound, NotAuthenticated, ParseError, PermissionDenied
 from django.db import transaction
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
@@ -76,6 +76,17 @@ class RoomDetail(APIView):
   def get(self, request, room_id):
     serializer = RoomDetailSerializer(self.get_object(room_id))
     return Response(serializer.data)
+
+  def delete(self, request, room_id):
+    room = self.get_object(room_id)
+    if not request.user.is_authenticated:
+      raise NotAuthenticated
+    if room.owner != request.user:
+      raise PermissionDenied
+    
+    room.delete()
+    return Response(status=HTTP_204_NO_CONTENT)
+
 
 class Amenities(APIView):
   def get(self, request):
