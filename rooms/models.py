@@ -1,6 +1,8 @@
 from django.db import models
 from common.models import CommonModel
 
+from django.core.validators import MinValueValidator
+
 # Create your models here.
 class Room(CommonModel):
   """Room Model Definition"""
@@ -20,9 +22,9 @@ class Room(CommonModel):
     max_length=80,
     default="서울",
   )
-  price = models.PositiveIntegerField()
-  rooms = models.PositiveIntegerField()
-  toilets = models.PositiveIntegerField()
+  price = models.PositiveIntegerField(validators=[MinValueValidator(0)])
+  rooms = models.PositiveIntegerField(validators=[MinValueValidator(0)])
+  toilets = models.PositiveIntegerField(validators=[MinValueValidator(0)])
   description = models.TextField()
   address = models.CharField(
     max_length=250,
