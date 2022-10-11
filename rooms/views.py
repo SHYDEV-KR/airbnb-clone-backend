@@ -8,6 +8,8 @@ from rest_framework.views import APIView
 from .models import Amenity, Room
 from categories.models import Category
 from .serializers import AmenitySerializer, RoomListSerializer, RoomDetailSerializer
+from reviews.serializers import ReviewSerializer
+
 from rooms import serializers
 
 # Create your views here.
@@ -189,3 +191,27 @@ class AmenityDetail(APIView):
   def delete(self, request, amenity_id):
     self.get_object(amenity_id).delete()
     return Response(status=HTTP_204_NO_CONTENT)
+
+
+class RoomReviews(APIView):
+  def get_object(self, pk):
+    try:
+      return Room.objects.get(pk=pk)
+    except Room.DoesNotExist:
+      raise NotFound
+
+  def get(self, request, room_id):
+    try:
+      page = int(request.query_params.get("page", 1))
+    except ValueError:
+      page = 1
+    page_size = 5
+    start = (page - 1) * page_size
+    end = start + page_size
+    room = self.get_object(room_id)
+    serializer = ReviewSerializer(
+      room.reviews.all()[start:end],
+      many=True,
+    )
+    return Response(serializer.data)
+      
